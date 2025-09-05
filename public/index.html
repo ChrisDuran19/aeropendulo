@@ -1,0 +1,2054 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Aeropéndulo por Visión Artificial</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #1e1e1e;
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --accent-blue: #00d4ff;
+            --accent-green: #00ff88;
+            --accent-red: #ff4757;
+            --accent-yellow: #ffa502;
+            --border-color: #333333;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-card: #ffffff;
+            --text-primary: #1a202c;
+            --text-secondary: #4a5568;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-gap: 20px;
+        }
+
+        /* Header mejorado */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+            padding: 20px 30px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: var(--gradient-primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Cards mejoradas */
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-primary {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(0, 212, 255, 0.05) 100%);
+        }
+
+        .card-wide {
+            grid-column: 1 / -1;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .card-badge {
+            background: var(--accent-green);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            animation: pulse 2s infinite;
+        }
+
+        /* Gauge mejorado */
+        .gauge-container {
+            padding: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .gauge {
+            position: relative;
+            width: 300px;
+            height: 200px;
+        }
+
+        .gauge-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .gauge-track {
+            stroke: var(--border-color);
+        }
+
+        .gauge-fill {
+            stroke: var(--accent-blue);
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.5s ease;
+            filter: drop-shadow(0 0 10px var(--accent-blue));
+        }
+
+        .gauge-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -40%);
+            text-align: center;
+        }
+
+        .gauge-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            text-shadow: 0 0 20px var(--accent-blue);
+        }
+
+        .gauge-label {
+            font-size: 12px;
+            fill: var(--text-secondary);
+        }
+
+        .gauge-label-small {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        /* Valores mejorados */
+        .value-display {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .value-number {
+            font-size: 48px;
+            font-weight: 700;
+            display: block;
+        }
+
+        .reference-value .value-number {
+            color: var(--accent-green);
+            text-shadow: 0 0 20px var(--accent-green);
+        }
+
+        .error-value .value-number {
+            color: var(--accent-red);
+            text-shadow: 0 0 20px var(--accent-red);
+        }
+
+        /* Gráfico mejorado */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 20px;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-small:hover {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .time-range-select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .chart-stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        /* Video mejorado */
+        .video-container {
+            position: relative;
+            padding: 20px;
+        }
+
+        #liveVideo {
+            width: 100%;
+            height: 250px;
+            border-radius: 12px;
+            background: #000;
+            object-fit: cover;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: white;
+            font-size: 12px;
+        }
+
+        .detection-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        .video-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .btn-icon:hover {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        /* Controles mejorados */
+        .controls {
+            padding: 24px;
+        }
+
+        .control-group {
+            margin-bottom: 24px;
+        }
+
+        .control-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .control-input {
+            flex: 1;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 16px;
+        }
+
+        .input-unit {
+            margin-left: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .angle-slider {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-secondary);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .angle-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent-blue);
+        }
+
+        .pid-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .pid-param {
+            text-align: center;
+        }
+
+        .pid-param label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .pid-param input {
+            width: 100%;
+            padding: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            margin-right: 12px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-secondary);
+            transition: 0.4s;
+            border-radius: 24px;
+            border: 1px solid var(--border-color);
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 2px;
+            bottom: 2px;
+            background: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background: var(--accent-blue);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-active {
+            background: var(--accent-green) !important;
+            color: white !important;
+        }
+
+        /* Estado del sistema */
+        .system-status {
+            padding: 20px 24px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-connected { background: var(--accent-green); }
+        .status-active { background: var(--accent-blue); }
+        .status-error { background: var(--accent-red); }
+        .status-warning { background: var(--accent-yellow); }
+
+        .status-details {
+            flex: 1;
+        }
+
+        .status-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-value {
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .status-on { color: var(--accent-green); }
+        .status-error { color: var(--accent-red); }
+        .status-warning { color: var(--accent-yellow); }
+
+        .status-extra {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Event Log */
+        .event-log {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+
+        .log-entry {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 14px;
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            min-width: 80px;
+        }
+
+        .log-message {
+            flex: 1;
+        }
+
+        .log-info { border-left: 3px solid var(--accent-blue); padding-left: 12px; }
+        .log-warning { border-left: 3px solid var(--accent-yellow); padding-left: 12px; }
+        .log-error { border-left: 3px solid var(--accent-red); padding-left: 12px; }
+
+        /* Footer */
+        .footer {
+            grid-column: 1 / -1;
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 24px 30px;
+            margin-top: 20px;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .footer-left p {
+            margin: 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .footer-left p:first-child {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .timestamp {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 16px;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+            
+            .header-controls {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .gauge {
+                width: 250px;
+                height: 160px;
+            }
+            
+            .value-number {
+                font-size: 36px;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .footer-content {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+
+        /* Animaciones adicionales */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .card:nth-child(even) {
+            animation-delay: 0.1s;
+        }
+
+        /* Efectos de hover mejorados */
+        .card:hover {
+            box-shadow: 0 8px 40px rgba(0, 212, 255, 0.15);
+        }
+
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-blue);
+        }
+    </style>
+</head>
+<body class="theme-dark">
+    <div class="container">
+        <!-- Header mejorado -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="title">Control de Aeropéndulo por Visión Artificial</h1>
+                    <p class="subtitle">Sistema de Control Inteligente</p>
+                </div>
+            </div>
+            <div class="header-controls">
+                <button class="btn btn-secondary theme-toggle" onclick="toggleTheme()" title="Cambiar tema">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 18C8.69 18 6 15.31 6 12S8.69 6 12 6 18 8.69 18 12 15.31 18 12 18ZM12 8C9.79 8 8 9.79 8 12S9.79 16 12 16 16 14.21 16 12 14.21 8 12 8Z"/>
+                    </svg>
+                    Tema
+                </button>
+                <button class="btn btn-secondary language-toggle" onclick="toggleLanguage()" title="Cambiar idioma">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.87 15.07L10.33 12.56L10.36 12.53C12.1 10.59 13.34 8.36 14.07 6H17V4H10V2H8V4H1V6H12.17C11.5 7.92 10.44 9.75 9 11.35C8.07 10.32 7.3 9.19 6.69 8H4.69C5.42 9.63 6.42 11.17 7.67 12.56L2.58 17.58L4 19L9 14L12.11 17.11L12.87 15.07Z"/>
+                    </svg>
+                    Idioma
+                </button>
+                <div class="connection-status">
+                    <div class="status-indicator status-connected"></div>
+                    <span>Conectado</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Panel principal de medición -->
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Ángulo Actual del Péndulo</h3>
+                <div class="card-badge">Real-time</div>
+            </div>
+            <div class="gauge-container">
+                <div class="gauge">
+                    <svg class="gauge-svg" viewBox="0 0 200 120">
+                        <!-- Fondo del gauge -->
+                        <path class="gauge-track" d="M 30 90 A 70 70 0 0 1 170 90" stroke-width="8" fill="none"/>
+                        <!-- Valor del gauge -->
+                        <path class="gauge-fill" d="M 30 90 A 70 70 0 0 1 170 90" stroke-width="8" fill="none" stroke-dasharray="0 220"/>
+                        <!-- Marcadores -->
+                        <g class="gauge-markers">
+                            <text x="30" y="105" text-anchor="middle" class="gauge-label">-90°</text>
+                            <text x="100" y="25" text-anchor="middle" class="gauge-label">0°</text>
+                            <text x="170" y="105" text-anchor="middle" class="gauge-label">90°</text>
+                        </g>
+                    </svg>
+                    <div class="gauge-center">
+                        <div class="gauge-value" id="currentAngle">33°</div>
+                        <div class="gauge-label-small">Actual</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Valores de referencia y error -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Ángulo de Referencia</h3>
+                <button class="btn-icon" onclick="editReference()" title="Editar referencia">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM20.71 7.04C21.1 6.65 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.35 2.9 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="value-display reference-value">
+                <span class="value-number" id="referenceAngle">45°</span>
+                <div class="value-trend">
+                    <span class="trend-indicator stable">●</span>
+                    <span class="trend-text">Estable</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Error</h3>
+                <div class="error-indicator" id="errorIndicator">
+                    <div class="error-bar"></div>
+                </div>
+            </div>
+            <div class="value-display error-value">
+                <span class="value-number" id="errorValue">-12°</span>
+                <div class="error-magnitude">
+                    <div class="magnitude-bar">
+                        <div class="magnitude-fill" style="width: 26.6%"></div>
+                    </div>
+                    <span class="magnitude-text">Medio</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico mejorado -->
+        <div class="card card-wide">
+            <div class="card-header">
+                <h3 class="card-title">Ángulo vs Tiempo</h3>
+                <div class="chart-controls">
+                    <button class="btn-small" onclick="togglePause()" id="pauseBtn">Pausar</button>
+                    <button class="btn-small" onclick="clearChart()">Limpiar</button>
+                    <select class="time-range-select" onchange="changeTimeRange(this.value)">
+                        <option value="30">30s</option>
+                        <option value="60" selected>1min</option>
+                        <option value="300">5min</option>
+                    </select>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="angleChart"></canvas>
+            </div>
+            <div class="chart-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Promedio</span>
+                    <span class="stat-value" id="avgAngle">8.5°</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Desv. Est.</span>
+                    <span class="stat-value" id="stdAngle">15.2°</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Min/Max</span>
+                    <span class="stat-value" id="minMaxAngle">-25° / 32°</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video en vivo mejorado -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Video en Vivo</h3>
+                <div class="video-controls">
+                    <button class="btn-icon" onclick="toggleFullscreen()" title="Pantalla completa">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 14H5V19H10V17H7V14ZM5 10H7V7H10V5H5V10ZM17 17H14V19H19V14H17V17ZM14 5V7H17V10H19V5H14Z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="captureFrame()" title="Capturar frame">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 15.2L8.4 18.8L7 17.4L10.6 13.8L12 15.2ZM12 8.8L15.6 5.2L17 6.6L13.4 10.2L12 8.8ZM9 1H15L17 3H21C22.1 3 23 3.9 23 5V19C23 20.1 22.1 21 21 21H3C1.9 21 1 20.1 1 19V5C1 3.9 1.9 3 3 3H7L9 1Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="video-container">
+                <video id="liveVideo" autoplay muted loop>
+                    <source src="https://commondatastorage.googleapis.com/gweb-uniblog-publish-prod/images/1kQfjZoXyHrVqWYbOxJiK.webm" type="video/webm">
+                    Tu navegador no soporta video HTML5.
+                </video>
+                <div class="video-overlay">
+                    <div class="detection-indicator">
+                        <div class="detection-dot"></div>
+                        <span>Detección Activa</span>
+                    </div>
+                </div>
+                <canvas id="videoCanvas" style="display: none;"></canvas>
+            </div>
+        </div>
+
+        <!-- Controles de usuario mejorados -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Controles de Usuario</h3>
+                <div class="control-mode">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoMode" onchange="toggleAutoMode()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span>Modo Auto</span>
+                </div>
+            </div>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="targetAngle" class="control-label">Ángulo Objetivo</label>
+                    <div class="input-group">
+                        <input type="number" id="targetAngle" class="control-input" value="45" min="-90" max="90" step="1">
+                        <span class="input-unit">°</span>
+                    </div>
+                    <input type="range" id="angleSlider" class="angle-slider" min="-90" max="90" value="45" oninput="updateTargetAngle(this.value)">
+                </div>
+                
+                <div class="control-group">
+                    <label for="pidGain" class="control-label">Ganancia PID</label>
+                    <div class="pid-controls">
+                        <div class="pid-param">
+                            <label>Kp</label>
+                            <input type="number" id="kp" value="1.2" step="0.1" min="0" max="10">
+                        </div>
+                        <div class="pid-param">
+                            <label>Ki</label>
+                            <input type="number" id="ki" value="0.1" step="0.01" min="0" max="1">
+                        </div>
+                        <div class="pid-param">
+                            <label>Kd</label>
+                            <input type="number" id="kd" value="0.05" step="0.01" min="0" max="1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="startStopBtn" onclick="toggleSystem()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5V19L19 12L8 5Z" id="playIcon"/>
+                        </svg>
+                        <span id="startStopText">Iniciar</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetSystem()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4C7.58 4 4 7.58 4 12S7.58 20 12 20C15.73 20 18.84 17.45 19.73 14H17.65C16.83 16.33 14.61 18 12 18C8.69 18 6 15.31 6 12S8.69 6 12 6C13.66 6 15.14 6.69 16.22 7.78L13 11H20V4L17.65 6.35Z"/>
+                        </svg>
+                        Reset
+                    </button>
+                    <button class="btn btn-secondary" onclick="emergencyStop()" title="Parada de emergencia">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 6H18V18H6V6Z"/>
+                        </svg>
+                        Emergencia
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estado del sistema mejorado -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Estado del Sistema</h3>
+                <div class="system-health">
+                    <div class="health-indicator health-good"></div>
+                    <span>Operacional</span>
+                </div>
+            </div>
+            <div class="system-status">
+                <div class="status-item">
+                    <div class="status-icon status-connected"></div>
+                    <div class="status-details">
+                        <span class="status-label">Conexión</span>
+                        <span class="status-value status-on">CONECTADO</span>
+                        <div class="status-extra">Latencia: 15ms</div>
+                    </div>
+                </div>
+                <div class="status-item">
+                    <div class="status-icon status-active"></div>
+                    <div class="status-details">
+                        <span class="status-label">Motor</span>
+                        <span class="status-value status-on">ACTIVO</span>
+                        <div class="status-extra">Velocidad: 1200 RPM</div>
+                    </div>
+                </div>
+                <div class="status-item">
+                    <div class="status-icon status-error"></div>
+                    <div class="status-details">
+                        <span class="status-label">Cámara</span>
+                        <span class="status-value status-error">ERROR</span>
+                        <div class="status-extra">Frame rate: 0 FPS</div>
+                    </div>
+                </div>
+                <div class="status-item">
+                    <div class="status-icon status-warning"></div>
+                    <div class="status-details">
+                        <span class="status-label">PID Controller</span>
+                        <span class="status-value status-warning">SATURACIÓN</span>
+                        <div class="status-extra">Output: 95%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alertas y notificaciones -->
+        <div class="card card-wide">
+            <div class="card-header">
+                <h3 class="card-title">Registro de Eventos</h3>
+                <button class="btn-small" onclick="clearLog()">Limpiar</button>
+            </div>
+            <div class="event-log" id="eventLog">
+                <div class="log-entry log-error">
+                    <span class="log-time">14:32:15</span>
+                    <span class="log-message">Error de conexión con cámara</span>
+                </div>
+                <div class="log-entry log-warning">
+                    <span class="log-time">14:31:45</span>
+                    <span class="log-message">Controlador PID en saturación</span>
+                </div>
+                <div class="log-entry log-info">
+                    <span class="log-time">14:30:12</span>
+                    <span class="log-message">Sistema iniciado correctamente</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer mejorado -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-left">
+                    <p><strong>Cristian David Duran Grimaldo</strong></p>
+                    <p>Proyecto de Control Automático - 2024</p>
+                </div>
+                <div class="footer-right">
+                    <div class="timestamp">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.5 2 2 6.5 2 12S6.5 22 12 22 22 17.5 22 12 17.5 2 12 2ZM17 13H11V7H13V11H17V13Z"/>
+                        </svg>
+                        <span id="currentTime">12 Abril, 2024 14:32</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Variables globales
+        let angleChart;
+        let isPaused = false;
+        let isSystemRunning = false;
+        let currentLanguage = 'es';
+        let angleData = [];
+        let timeData = [];
+        let dataPoints = 0;
+        let maxDataPoints = 60;
+        let lastFrameTime = performance.now();
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChart();
+            updateClock();
+            setInterval(updateClock, 1000);
+            setInterval(simulateData, 1000);
+            setupEventListeners();
+            initializeLogs();
+        });
+
+        // Inicializar gráfico mejorado
+        function initializeChart() {
+            const ctx = document.getElementById('angleChart').getContext('2d');
+            
+            angleChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Ángulo Actual',
+                        data: [],
+                        borderColor: '#00d4ff',
+                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    }, {
+                        label: 'Referencia',
+                        data: [],
+                        borderColor: '#00ff88',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        fill: false,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#ffffff',
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#00d4ff',
+                            borderWidth: 1,
+                            cornerRadius: 8
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: true,
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#b3b3b3',
+                                maxTicksLimit: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        y: {
+                            min: -90,
+                            max: 90,
+                            grid: {
+                                display: true,
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#b3b3b3',
+                                font: {
+                                    size: 11
+                                },
+                                callback: function(value) {
+                                    return value + '°';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Simular datos en tiempo real con mayor realismo
+        function simulateData() {
+            if (isPaused) return;
+
+            // Simulación más realística del comportamiento del péndulo
+            const targetAngle = parseFloat(document.getElementById('targetAngle').value);
+            const time = dataPoints * 0.1;
+            
+            // Sistema de segundo orden con amortiguamiento
+            const dampingFactor = 0.1;
+            const naturalFreq = 0.5;
+            const noise = (Math.random() - 0.5) * 2; // Ruido ±1°
+            
+            let currentAngle;
+            if (isSystemRunning) {
+                // Respuesta del sistema con controlador PID activo
+                const error = angleData.length > 0 ? targetAngle - angleData[angleData.length - 1] : 0;
+                const pidOutput = simulatePID(error);
+                currentAngle = targetAngle + Math.sin(time * naturalFreq) * Math.exp(-dampingFactor * time) * 20 + noise + pidOutput * 0.1;
+            } else {
+                // Oscilación libre
+                currentAngle = Math.sin(time * 0.3) * 45 + Math.cos(time * 0.2) * 15 + noise;
+            }
+            
+            // Limitar el ángulo
+            currentAngle = Math.max(-90, Math.min(90, currentAngle));
+            
+            const error = currentAngle - targetAngle;
+            
+            // Actualizar valores en la interfaz
+            updateGauge(currentAngle);
+            document.getElementById('currentAngle').textContent = currentAngle.toFixed(1) + '°';
+            document.getElementById('errorValue').textContent = error.toFixed(1) + '°';
+            
+            // Actualizar indicador de error
+            updateErrorIndicator(Math.abs(error));
+            
+            // Actualizar gráfico
+            if (!isPaused) {
+                angleData.push(currentAngle);
+                timeData.push(dataPoints);
+                
+                if (angleData.length > maxDataPoints) {
+                    angleData.shift();
+                    timeData.shift();
+                }
+                
+                angleChart.data.labels = timeData.map((_, i) => i + 's');
+                angleChart.data.datasets[0].data = angleData;
+                angleChart.data.datasets[1].data = new Array(angleData.length).fill(targetAngle);
+                angleChart.update('none');
+                
+                // Actualizar estadísticas
+                updateStatistics();
+            }
+            
+            dataPoints++;
+            lastFrameTime = performance.now();
+        }
+
+        // Simulador PID básico
+        let pidIntegral = 0;
+        let pidLastError = 0;
+
+        function simulatePID(error) {
+            const kp = parseFloat(document.getElementById('kp').value) || 1.2;
+            const ki = parseFloat(document.getElementById('ki').value) || 0.1;
+            const kd = parseFloat(document.getElementById('kd').value) || 0.05;
+            
+            pidIntegral += error;
+            const derivative = error - pidLastError;
+            const output = kp * error + ki * pidIntegral + kd * derivative;
+            pidLastError = error;
+            
+            // Saturación del controlador
+            return Math.max(-100, Math.min(100, output));
+        }
+
+        // Actualizar gauge con animación suave
+        function updateGauge(angle) {
+            const gaugeFill = document.querySelector('.gauge-fill');
+            const normalizedAngle = (angle + 90) / 180; // Normalizar a 0-1
+            
+            // Actualizar el arco del gauge
+            if (gaugeFill) {
+                const circumference = 220; // Aproximado para el arco
+                const strokeLength = normalizedAngle * circumference;
+                gaugeFill.style.strokeDasharray = `${strokeLength} ${circumference}`;
+            }
+        }
+
+        // Actualizar indicador de error
+        function updateErrorIndicator(errorMagnitude) {
+            const indicator = document.querySelector('.magnitude-fill');
+            const text = document.querySelector('.magnitude-text');
+            
+            if (indicator && text) {
+                const percentage = Math.min(100, (errorMagnitude / 45) * 100);
+                indicator.style.width = percentage + '%';
+                
+                if (errorMagnitude < 5) {
+                    text.textContent = 'Bajo';
+                    indicator.style.background = 'var(--accent-green)';
+                } else if (errorMagnitude < 15) {
+                    text.textContent = 'Medio';
+                    indicator.style.background = 'var(--accent-yellow)';
+                } else {
+                    text.textContent = 'Alto';
+                    indicator.style.background = 'var(--accent-red)';
+                }
+            }
+        }
+
+        // Actualizar estadísticas
+        function updateStatistics() {
+            if (angleData.length > 0) {
+                const avg = angleData.reduce((sum, val) => sum + val, 0) / angleData.length;
+                const variance = angleData.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / angleData.length;
+                const std = Math.sqrt(variance);
+                const min = Math.min(...angleData);
+                const max = Math.max(...angleData);
+                
+                document.getElementById('avgAngle').textContent = avg.toFixed(1) + '°';
+                document.getElementById('stdAngle').textContent = std.toFixed(1) + '°';
+                document.getElementById('minMaxAngle').textContent = `${min.toFixed(1)}° / ${max.toFixed(1)}°`;
+            }
+        }
+
+        // Controles del sistema
+        function toggleSystem() {
+            isSystemRunning = !isSystemRunning;
+            const btn = document.getElementById('startStopBtn');
+            const text = document.getElementById('startStopText');
+            const icon = document.getElementById('playIcon');
+            
+            if (isSystemRunning) {
+                text.textContent = 'Detener';
+                icon.innerHTML = '<path d="M6 6H18V18H6V6Z"/>';
+                btn.classList.add('btn-active');
+                addLogEntry('Sistema iniciado', 'info');
+                // Reset PID
+                pidIntegral = 0;
+                pidLastError = 0;
+            } else {
+                text.textContent = 'Iniciar';
+                icon.innerHTML = '<path d="M8 5V19L19 12L8 5Z"/>';
+                btn.classList.remove('btn-active');
+                addLogEntry('Sistema detenido', 'info');
+            }
+        }
+
+        function resetSystem() {
+            angleData = [];
+            timeData = [];
+            dataPoints = 0;
+            pidIntegral = 0;
+            pidLastError = 0;
+            
+            angleChart.data.labels = [];
+            angleChart.data.datasets[0].data = [];
+            angleChart.data.datasets[1].data = [];
+            angleChart.update();
+            
+            // Reset valores
+            document.getElementById('currentAngle').textContent = '0°';
+            document.getElementById('errorValue').textContent = '0°';
+            updateGauge(0);
+            
+            addLogEntry('Sistema reiniciado', 'info');
+        }
+
+        function emergencyStop() {
+            isSystemRunning = false;
+            isPaused = true;
+            
+            // Update UI
+            const btn = document.getElementById('startStopBtn');
+            const text = document.getElementById('startStopText');
+            const icon = document.getElementById('playIcon');
+            
+            text.textContent = 'Iniciar';
+            icon.innerHTML = '<path d="M8 5V19L19 12L8 5Z"/>';
+            btn.classList.remove('btn-active');
+            
+            document.getElementById('pauseBtn').textContent = 'Reanudar';
+            
+            addLogEntry('⚠️ Parada de emergencia activada', 'error');
+            showNotification('Parada de Emergencia', 'Sistema detenido por seguridad', 'error');
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            const btn = document.getElementById('pauseBtn');
+            btn.textContent = isPaused ? 'Reanudar' : 'Pausar';
+            
+            addLogEntry(isPaused ? 'Sistema pausado' : 'Sistema reanudado', 'info');
+        }
+
+        function clearChart() {
+            angleData = [];
+            timeData = [];
+            dataPoints = 0;
+            angleChart.data.labels = [];
+            angleChart.data.datasets[0].data = [];
+            angleChart.data.datasets[1].data = [];
+            angleChart.update();
+            
+            // Clear statistics
+            document.getElementById('avgAngle').textContent = '0°';
+            document.getElementById('stdAngle').textContent = '0°';
+            document.getElementById('minMaxAngle').textContent = '0° / 0°';
+            
+            addLogEntry('Gráfico limpiado', 'info');
+        }
+
+        function updateTargetAngle(value) {
+            document.getElementById('targetAngle').value = value;
+            document.getElementById('referenceAngle').textContent = value + '°';
+        }
+
+        // Control de tema mejorado con transiciones suaves
+        function toggleTheme() {
+            const html = document.documentElement;
+            const body = document.body;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            // Añadir clase de transición
+            body.style.transition = 'all 0.3s ease';
+            
+            html.setAttribute('data-theme', newTheme);
+            body.className = `theme-${newTheme}`;
+            
+            // Actualizar colores del gráfico
+            if (angleChart) {
+                const textColor = newTheme === 'dark' ? '#ffffff' : '#1a202c';
+                const gridColor = newTheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+                
+                angleChart.options.plugins.legend.labels.color = textColor;
+                angleChart.options.scales.x.ticks.color = textColor;
+                angleChart.options.scales.y.ticks.color = textColor;
+                angleChart.options.scales.x.grid.color = gridColor;
+                angleChart.options.scales.y.grid.color = gridColor;
+                angleChart.update();
+            }
+            
+            addLogEntry(`Tema cambiado a ${newTheme === 'dark' ? 'oscuro' : 'claro'}`, 'info');
+            
+            // Remover transición después de un tiempo
+            setTimeout(() => {
+                body.style.transition = '';
+            }, 300);
+        }
+
+        // Control de idioma mejorado
+        function toggleLanguage() {
+            currentLanguage = currentLanguage === 'es' ? 'en' : 'es';
+            document.documentElement.lang = currentLanguage;
+            
+            const translations = {
+                'es': {
+                    'title': 'Control de Aeropéndulo por Visión Artificial',
+                    'subtitle': 'Sistema de Control Inteligente',
+                    'currentAngle': 'Ángulo Actual del Péndulo',
+                    'referenceAngle': 'Ángulo de Referencia',
+                    'error': 'Error',
+                    'angleTime': 'Ángulo vs Tiempo',
+                    'liveVideo': 'Video en Vivo',
+                    'userControls': 'Controles de Usuario',
+                    'systemStatus': 'Estado del Sistema',
+                    'eventLog': 'Registro de Eventos',
+                    'start': 'Iniciar',
+                    'stop': 'Detener',
+                    'pause': 'Pausar',
+                    'resume': 'Reanudar',
+                    'clear': 'Limpiar',
+                    'reset': 'Reset',
+                    'emergency': 'Emergencia'
+                },
+                'en': {
+                    'title': 'Aeropendulum Control by Computer Vision',
+                    'subtitle': 'Intelligent Control System',
+                    'currentAngle': 'Current Pendulum Angle',
+                    'referenceAngle': 'Reference Angle',
+                    'error': 'Error',
+                    'angleTime': 'Angle vs Time',
+                    'liveVideo': 'Live Video',
+                    'userControls': 'User Controls',
+                    'systemStatus': 'System Status',
+                    'eventLog': 'Event Log',
+                    'start': 'Start',
+                    'stop': 'Stop',
+                    'pause': 'Pause',
+                    'resume': 'Resume',
+                    'clear': 'Clear',
+                    'reset': 'Reset',
+                    'emergency': 'Emergency'
+                }
+            };
+            
+            // Aplicar traducciones
+            const t = translations[currentLanguage];
+            document.querySelector('.title').textContent = t.title;
+            document.querySelector('.subtitle').textContent = t.subtitle;
+            
+            // Actualizar botones
+            if (!isSystemRunning) {
+                document.getElementById('startStopText').textContent = t.start;
+            }
+            
+            addLogEntry(`Idioma cambiado a ${currentLanguage === 'es' ? 'español' : 'inglés'}`, 'info');
+        }
+
+        // Gestión de logs mejorada
+        function addLogEntry(message, type = 'info') {
+            const logContainer = document.getElementById('eventLog');
+            const entry = document.createElement('div');
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('es-ES', { hour12: false });
+            
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `
+                <span class="log-time">${timeStr}</span>
+                <span class="log-message">${message}</span>
+            `;
+            
+            // Animación de entrada
+            entry.style.opacity = '0';
+            entry.style.transform = 'translateY(-10px)';
+            
+            // Insertar al principio
+            logContainer.insertBefore(entry, logContainer.firstChild);
+            
+            // Animar entrada
+            setTimeout(() => {
+                entry.style.transition = 'all 0.3s ease';
+                entry.style.opacity = '1';
+                entry.style.transform = 'translateY(0)';
+            }, 10);
+            
+            // Limitar a 50 entradas
+            while (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        function clearLog() {
+            const logContainer = document.getElementById('eventLog');
+            const entries = logContainer.children;
+            
+            // Animar salida
+            Array.from(entries).forEach((entry, index) => {
+                setTimeout(() => {
+                    entry.style.transition = 'all 0.3s ease';
+                    entry.style.opacity = '0';
+                    entry.style.transform = 'translateX(100px)';
+                }, index * 50);
+            });
+            
+            // Limpiar después de la animación
+            setTimeout(() => {
+                logContainer.innerHTML = '';
+                addLogEntry('Log limpiado', 'info');
+            }, entries.length * 50 + 300);
+        }
+
+        // Funciones de video
+        function toggleFullscreen() {
+            const video = document.getElementById('liveVideo');
+            if (!document.fullscreenElement) {
+                video.requestFullscreen().catch(err => {
+                    console.log('Error al activar pantalla completa:', err);
+                    addLogEntry('Error al activar pantalla completa', 'error');
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function captureFrame() {
+            const video = document.getElementById('liveVideo');
+            const canvas = document.getElementById('videoCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 360;
+            ctx.drawImage(video, 0, 0);
+            
+            // Descargar la imagen
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `aeropendulum_frame_${new Date().getTime()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+            
+            addLogEntry('📸 Frame capturado exitosamente', 'info');
+        }
+
+        // Actualizar reloj con formato mejorado
+        function updateClock() {
+            const now = new Date();
+            const options = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            document.getElementById('currentTime').textContent = now.toLocaleDateString('es-ES', options);
+        }
+
+        // Modo automático
+        function toggleAutoMode() {
+            const autoMode = document.getElementById('autoMode').checked;
+            const controls = document.querySelectorAll('.control-input, .angle-slider, .pid-param input');
+            
+            controls.forEach(control => {
+                control.disabled = autoMode;
+                if (autoMode) {
+                    control.style.opacity = '0.6';
+                    control.style.cursor = 'not-allowed';
+                } else {
+                    control.style.opacity = '1';
+                    control.style.cursor = '';
+                }
+            });
+            
+            addLogEntry(`🤖 Modo automático ${autoMode ? 'activado' : 'desactivado'}`, 'info');
+            
+            if (autoMode) {
+                // Optimización automática de parámetros PID
+                setTimeout(() => {
+                    document.getElementById('kp').value = '1.5';
+                    document.getElementById('ki').value = '0.2';
+                    document.getElementById('kd').value = '0.08';
+                    addLogEntry('Parámetros PID optimizados automáticamente', 'info');
+                }, 1000);
+            }
+        }
+
+        // Editar referencia con validación mejorada
+        function editReference() {
+            const current = document.getElementById('referenceAngle').textContent.replace('°', '');
+            const newValue = prompt('Nuevo ángulo de referencia (-90° a 90°):', current);
+            
+            if (newValue !== null && !isNaN(newValue)) {
+                const angle = Math.max(-90, Math.min(90, parseFloat(newValue)));
+                document.getElementById('referenceAngle').textContent = angle + '°';
+                document.getElementById('targetAngle').value = angle;
+                document.getElementById('angleSlider').value = angle;
+                addLogEntry(`🎯 Ángulo de referencia cambiado a ${angle}°`, 'info');
+                
+                // Reset PID integral si el sistema está corriendo
+                if (isSystemRunning) {
+                    pidIntegral = 0;
+                }
+            }
+        }
+
+        // Cambiar rango de tiempo
+        function changeTimeRange(seconds) {
+            const newMaxDataPoints = parseInt(seconds);
+            
+            // Recortar datos si es necesario
+            if (angleData.length > newMaxDataPoints) {
+                angleData = angleData.slice(-newMaxDataPoints);
+                timeData = timeData.slice(-newMaxDataPoints);
+                angleChart.data.labels = timeData.map((_, i) => i + 's');
+                angleChart.data.datasets[0].data = angleData;
+                angleChart.data.datasets[1].data = new Array(angleData.length).fill(
+                    parseInt(document.getElementById('targetAngle').value)
+                );
+                angleChart.update();
+            }
+            
+            maxDataPoints = newMaxDataPoints;
+            addLogEntry(`⏱️ Rango de tiempo cambiado a ${seconds}s`, 'info');
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Eventos de teclado
+            document.addEventListener('keydown', function(event) {
+                // Prevenir acciones si hay un input activo
+                if (document.activeElement.tagName === 'INPUT') return;
+                
+                switch(event.key) {
+                    case ' ':
+                        event.preventDefault();
+                        togglePause();
+                        break;
+                    case 'r':
+                    case 'R':
+                        if (event.ctrlKey) {
+                            event.preventDefault();
+                            resetSystem();
+                        }
+                        break;
+                    case 'Escape':
+                        emergencyStop();
+                        break;
+                    case 't':
+                    case 'T':
+                        if (event.ctrlKey) {
+                            event.preventDefault();
+                            toggleTheme();
+                        }
+                        break;
+                    case 's':
+                    case 'S':
+                        if (event.ctrlKey) {
+                            event.preventDefault();
+                            toggleSystem();
+                        }
+                        break;
+                }
+            });
+
+            // Validación de entrada para ángulo objetivo
+            document.getElementById('targetAngle').addEventListener('input', function(e) {
+                const value = parseFloat(e.target.value);
+                if (isNaN(value) || value < -90 || value > 90) {
+                    e.target.setCustomValidity('El ángulo debe estar entre -90° y 90°');
+                    e.target.style.borderColor = 'var(--accent-red)';
+                } else {
+                    e.target.setCustomValidity('');
+                    e.target.style.borderColor = '';
+                    
+                    // Sincronizar con el slider y referencia
+                    document.getElementById('angleSlider').value = value;
+                    document.getElementById('referenceAngle').textContent = value + '°';
+                }
+            });
+
+            // Sincronización de controles PID con feedback visual
+            ['kp', 'ki', 'kd'].forEach(param => {
+                const input = document.getElementById(param);
+                input.addEventListener('change', function(e) {
+                    const value = parseFloat(e.target.value);
+                    if (value >= 0) {
+                        addLogEntry(`⚙️ Parámetro ${param.toUpperCase()} = ${value}`, 'info');
+                        e.target.style.borderColor = 'var(--accent-green)';
+                        setTimeout(() => {
+                            e.target.style.borderColor = '';
+                        }, 1000);
+                    } else {
+                        e.target.style.borderColor = 'var(--accent-red)';
+                    }
+                });
+                
+                // Validación en tiempo real
+                input.addEventListener('input', function(e) {
+                    const value = parseFloat(e.target.value);
+                    if (isNaN(value) || value < 0) {
+                        e.target.style.borderColor = 'var(--accent-red)';
+                    } else {
+                        e.target.style.borderColor = 'var(--accent-blue)';
+                    }
+                });
+            });
+
+            // Indicador de conectividad
+            window.addEventListener('online', function() {
+                addLogEntry('🌐 Conexión a internet restaurada', 'info');
+                document.querySelector('.connection-status .status-indicator').className = 'status-indicator status-connected';
+                document.querySelector('.connection-status span').textContent = 'Conectado';
+            });
+
+            window.addEventListener('offline', function() {
+                addLogEntry('⚠️ Conexión a internet perdida', 'warning');
+                document.querySelector('.connection-status .status-indicator').className = 'status-indicator status-error';
+                document.querySelector('.connection-status span').textContent = 'Desconectado';
+            });
+
+            // Detección de cambio de visibilidad de la página
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    addLogEntry('👁️ Página oculta - pausando actualizaciones', 'info');
+                } else {
+                    addLogEntry('👁️ Página visible - reanudando actualizaciones', 'info');
+                }
+            });
+
+            // Gestión de errores globales
+            window.addEventListener('error', function(e) {
+                addLogEntry(`❌ Error JavaScript: ${e.message}`, 'error');
+            });
+
+            // Eventos de video
+            const video = document.getElementById('liveVideo');
+            video.addEventListener('loadeddata', function() {
+                addLogEntry('📹 Video cargado correctamente', 'info');
+            });
+
+            video.addEventListener('error', function() {
+                addLogEntry('❌ Error al cargar el video', 'error');
+            });
+        }
+
+        // Notificaciones del sistema
+        function showNotification(title, message, type = 'info') {
+            // Verificar soporte para notificaciones
+            if ('Notification' in window) {
+                if (Notification.permission === 'granted') {
+                    const notification = new Notification(title, {
+                        body: message,
+                        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzAwZDRmZiI+PHBhdGggZD0iTTEyIDJDOC4xMyAyIDUgNS4xMyA1IDljMCA1LjI1IDcgMTMgNyAxM3M3LTcuNzUgNy0xM2MwLTMuODctMy4xMy03LTctN3ptMCA5LjVjLTEuMzggMC0yLjUtMS4xMi0yLjUtMi41czEuMTItMi41IDIuNS0yLjUgMi41IDEuMTIgMi41IDIuNS0xLjEyIDIuNS0yLjUgMi41eiIvPjwvc3ZnPg==',
+                        badge: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzAwZDRmZiI+PHBhdGggZD0iTTEyIDJDOC4xMyAyIDUgNS4xMyA1IDljMCA1LjI1IDcgMTMgNyAxM3M3LTcuNzUgNy0xM2MwLTMuODctMy4xMy03LTctN3ptMCA5LjVjLTEuMzggMC0yLjUtMS4xMi0yLjUtMi41czEuMTItMi41IDIuNS0yLjUgMi41IDEuMTIgMi41IDIuNS0xLjEyIDIuNS0yLjUgMi41eiIvPjwvc3ZnPg==',
+                        tag: 'aeropendulum',
+                        requireInteraction: type === 'error'
+                    });
+
+                    // Auto cerrar después de 5 segundos
+                    setTimeout(() => {
+                        notification.close();
+                    }, 5000);
+
+                } else if (Notification.permission !== 'denied') {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            showNotification(title, message, type);
+                        }
+                    });
+                }
+            }
+        }
+
+        // Monitoreo de performance
+        function monitorPerformance() {
+            const currentTime = performance.now();
+            const deltaTime = currentTime - lastFrameTime;
+            const fps = Math.round(1000 / deltaTime);
+            
+            const stats = {
+                fps: fps,
+                memory: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) : 'N/A',
+                latency: Math.random() * 10 + 5 // Simulado
+            };
+            
+            // Actualizar indicadores de latencia
+            document.querySelector('.status-extra').textContent = `Latencia: ${stats.latency.toFixed(0)}ms`;
+            
+            // Alertas de performance
+            if (stats.fps < 20) {
+                addLogEntry(`⚠️ FPS bajo detectado: ${stats.fps}`, 'warning');
+            }
+            
+            if (stats.memory !== 'N/A' && stats.memory > 100) {
+                addLogEntry(`⚠️ Alto uso de memoria: ${stats.memory}MB`, 'warning');
+            }
+            
+            return stats;
+        }
+
+        // Simulación de alertas del sistema
+        function simulateSystemAlerts() {
+            const alerts = [
+                { message: '🌡️ Temperatura del motor: 65°C', type: 'warning', probability: 0.08 },
+                { message: '📹 Pérdida temporal de señal de cámara', type: 'error', probability: 0.03 },
+                { message: '⚙️ Controlador PID optimizado automáticamente', type: 'info', probability: 0.12 },
+                { message: '📐 Calibración automática completada', type: 'info', probability: 0.10 },
+                { message: '🔋 Batería del sistema: 85%', type: 'info', probability: 0.05 },
+                { message: '🌐 Latencia de red estabilizada', type: 'info', probability: 0.15 }
+            ];
+            
+            alerts.forEach(alert => {
+                if (Math.random() < alert.probability / 100) {
+                    addLogEntry(alert.message, alert.type);
+                    if (alert.type === 'error') {
+                        showNotification('Error del Sistema', alert.message, alert.type);
+                    }
+                }
+            });
+        }
+
+        // Simulación de datos del sistema
+        function simulateSystemData() {
+            // Simular datos de RPM del motor
+            const motorRpm = isSystemRunning ? 
+                1200 + Math.sin(dataPoints * 0.05) * 100 + (Math.random() - 0.5) * 50 : 0;
+            
+            document.querySelector('.status-item:nth-child(2) .status-extra').textContent = 
+                `Velocidad: ${Math.max(0, motorRpm).toFixed(0)} RPM`;
+            
+            // Simular frame rate de la cámara
+            const cameraFps = Math.random() > 0.95 ? 0 : 30 + (Math.random() - 0.5) * 5;
+            document.querySelector('.status-item:nth-child(3) .status-extra').textContent = 
+                `Frame rate: ${cameraFps.toFixed(0)} FPS`;
+            
+            // Actualizar estado de la cámara
+            const cameraStatus = document.querySelector('.status-item:nth-child(3) .status-value');
+            if (cameraFps === 0) {
+                cameraStatus.textContent = 'ERROR';
+                cameraStatus.className = 'status-value status-error';
+            } else {
+                cameraStatus.textContent = 'ACTIVO';
+                cameraStatus.className = 'status-value status-on';
+            }
+            
+            // Simular saturación del controlador PID
+            const pidOutput = Math.random() * 100;
+            document.querySelector('.status-item:nth-child(4) .status-extra').textContent = 
+                `Output: ${pidOutput.toFixed(0)}%`;
+                
+            const pidStatus = document.querySelector('.status-item:nth-child(4) .status-value');
+            if (pidOutput > 90) {
+                pidStatus.textContent = 'SATURACIÓN';
+                pidStatus.className = 'status-value status-warning';
+            } else {
+                pidStatus.textContent = 'NORMAL';
+                pidStatus.className = 'status-value status-on';
+            }
+        }
+
+        // Función para inicializar logs del sistema
+        function initializeLogs() {
+            setTimeout(() => {
+                addLogEntry('🚀 Sistema inicializado correctamente', 'info');
+                addLogEntry('📹 Verificando conexión de cámara...', 'info');
+                
+                setTimeout(() => {
+                    addLogEntry('❌ Cámara no detectada - verificar conexión USB', 'error');
+                    addLogEntry('⚙️ Motor calibrado y listo', 'info');
+                    addLogEntry('📊 Controlador PID configurado', 'info');
+                    
+                    // Mostrar información del sistema
+                    setTimeout(() => {
+                        addLogEntry('📋 Sistema listo para operación', 'info');
+                        addLogEntry('💡 Presiona Ctrl+S para iniciar/detener', 'info');
+                        addLogEntry('💡 Presiona Espacio para pausar', 'info');
+                    }, 1500);
+                }, 2000);
+            }, 500);
+        }
+
+        // Función para exportar datos
+        function exportData() {
+            if (angleData.length === 0) {
+                addLogEntry('❌ No hay datos para exportar', 'warning');
+                return;
+            }
+            
+            const csvData = angleData.map((angle, index) => ({
+                tiempo: index,
+                angulo: angle.toFixed(2),
+                referencia: document.getElementById('targetAngle').value,
+                error: (angle - parseFloat(document.getElementById('targetAngle').value)).toFixed(2)
+            }));
+            
+            const csv = [
+                'Tiempo(s),Angulo(°),Referencia(°),Error(°)',
+                ...csvData.map(row => `${row.tiempo},${row.angulo},${row.referencia},${row.error}`)
+            ].join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `aeropendulum_data_${new Date().getTime()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            addLogEntry('📊 Datos exportados exitosamente', 'info');
+        }
+
+        // Ejecutar simulaciones periódicas
+        setInterval(simulateSystemAlerts, 30000); // Cada 30 segundos
+        setInterval(simulateSystemData, 2000); // Cada 2 segundos
+        setInterval(monitorPerformance, 5000); // Cada 5 segundos
+
+        // Solicitar permisos de notificación al cargar
+        if ('Notification' in window && Notification.permission === 'default') {
+            setTimeout(() => {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        addLogEntry('🔔 Notificaciones habilitadas', 'info');
+                    }
+                });
+            }, 3000);
+        }
+
+        // Añadir botón de exportación dinámicamente
+        const chartControls = document.querySelector('.chart-controls');
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'btn-small';
+        exportBtn.textContent = 'Exportar';
+        exportBtn.onclick = exportData;
+        chartControls.appendChild(exportBtn);
+
+        // Optimizaciones de rendimiento
+        // Usar requestAnimationFrame para animaciones suaves
+        function smoothUpdate() {
+            // Actualizar elementos que necesitan animación suave
+            requestAnimationFrame(smoothUpdate);
+        }
+
+        // Iniciar bucle de animación
+        smoothUpdate();
+
+        // Cleanup al cerrar la página
+        window.addEventListener('beforeunload', function() {
+            // Cleanup de intervalos y recursos si fuera necesario
+            addLogEntry('👋 Cerrando sistema...', 'info');
+        });
+
+        // Función de ayuda/tutorial
+        function showHelp() {
+            const helpContent = `
+            <h3>🎯 Control de Aeropéndulo - Guía de Uso</h3>
+            
+            <h4>⌨️ Atajos de Teclado:</h4>
+            <ul>
+                <li><strong>Ctrl + S</strong>: Iniciar/Detener sistema</li>
+                <li><strong>Espacio</strong>: Pausar/Reanudar</li>
+                <li><strong>Ctrl + R</strong>: Reiniciar sistema</li>
+                <li><strong>Escape</strong>: Parada de emergencia</li>
+                <li><strong>Ctrl + T</strong>: Cambiar tema</li>
+            </ul>
+            
+            <h4>🔧 Controles PID:</h4>
+            <ul>
+                <li><strong>Kp</strong>: Ganancia proporcional (1.0-3.0)</li>
+                <li><strong>Ki</strong>: Ganancia integral (0.01-0.5)</li>
+                <li><strong>Kd</strong>: Ganancia derivativa (0.01-0.2)</li>
+            </ul>
+            
+            <h4>📊 Indicadores:</h4>
+            <ul>
+                <li><strong>Verde</strong>: Sistema funcionando correctamente</li>
+                <li><strong>Amarillo</strong>: Advertencias del sistema</li>
+                <li><strong>Rojo</strong>: Errores que requieren atención</li>
+            </ul>
+            `;
+            
+            // Aquí podrías mostrar un modal con la ayuda
+            alert(helpContent.replace(/<[^>]*>/g, '\n').replace(/&nbsp;/g, ' '));
+            addLogEntry('❓ Ayuda mostrada', 'info');
+        }
+
+        // Añadir botón de ayuda
+        const helpBtn = document.createElement('button');
+        helpBtn.className = 'btn btn-secondary';
+        helpBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+            </svg>
+            Ayuda
+        `;
+        helpBtn.onclick = showHelp;
+        helpBtn.title = 'Mostrar ayuda y atajos';
+        
+        document.querySelector('.header-controls').appendChild(helpBtn);
+    </script>
+</body>
+</html>
